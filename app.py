@@ -1,64 +1,51 @@
 import os
-import tkinter as tk
-from tkinter import filedialog
 from PIL import Image
-
+import streamlit as st
 
 def load_and_convert_images():
-    # Öffne einen Dateidialog, um mehrere Bild-Dateien auszuwählen (alle Bildformate)
-    file_paths = filedialog.askopenfilenames(
-        title="Wähle Bild-Dateien aus",
-        filetypes=[("Image files", "*.jpeg *.jpg *.png *.bmp *.gif *.tiff"), ("All files", "*.*")]
+    # Streamlit file uploader for multiple image files
+    uploaded_files = st.file_uploader(
+        "Choose image files", 
+        type=["jpeg", "jpg", "png", "bmp", "gif", "tiff"], 
+        accept_multiple_files=True
     )
 
-    if not file_paths:
-        print("Keine Dateien ausgewählt.")
+    if not uploaded_files:
+        st.warning("No files uploaded.")
         return
 
-    # Öffne einen Dialog, um einen Zielordner für die gespeicherten Bilder auszuwählen
-    output_folder = filedialog.askdirectory(title="Wähle einen Zielordner für die Bilder aus")
-
-    if not output_folder:
-        print("Kein Zielordner ausgewählt.")
-        return
-
-    for file_path in file_paths:
+    # Process each uploaded image file
+    for uploaded_file in uploaded_files:
         try:
-            # Lade das Bild
-            img = Image.open(file_path)
+            # Load the image
+            img = Image.open(uploaded_file)
             width, height = img.size
-            rotated = False  # Flag um festzustellen, ob das Bild gedreht wurde
+            rotated = False  # Flag to check if the image was rotated
 
-            # Überprüfe, ob das Bild im Hochformat ist (Höhe > Breite)
+            # Check if the image is in portrait mode (height > width)
             if height > width:
-                # Drehe das Bild um 90 Grad, um es ins Querformat zu bringen
+                # Rotate the image to landscape mode
                 img = img.rotate(90, expand=True)
                 rotated = True
-                print(f"Bild {file_path} wurde ins Querformat gedreht.")
+                st.info(f"Image {uploaded_file.name} was rotated to landscape.")
             else:
-                print(f"Bild {file_path} ist bereits im Querformat.")
+                st.info(f"Image {uploaded_file.name} is already in landscape mode.")
 
-            # Erstelle einen neuen Dateinamen für den Zielordner und speichere als JPG
-            filename, _ = os.path.splitext(os.path.basename(file_path))  # Dateiname ohne Erweiterung
-            new_file_path = os.path.join(output_folder, f"{filename}.jpg")  # Immer .jpg speichern
+            # Convert and save the image as JPG
+            rgb_img = img.convert('RGB')  # Convert image to RGB to save as JPG
+            new_file_name = f"{os.path.splitext(uploaded_file.name)[0]}.jpg"
+            
+            # Provide a download link for the converted image
+            rgb_img.save(new_file_name, "JPEG")
+            st.success(f"Converted and saved as: {new_file_name}")
 
-            # Konvertiere das Bild, falls nötig, und speichere es als JPEG
-            rgb_img = img.convert('RGB')  # Konvertiere das Bild zu RGB, um es als JPG zu speichern
-            rgb_img.save(new_file_path, 'JPEG')  # Speichere es als .jpg
-
-            if rotated:
-                print(f"Bild gespeichert unter: {new_file_path} (umgewandelt und in JPG gespeichert)")
-            else:
-                print(f"Bild gespeichert unter: {new_file_path} (unverändert und in JPG gespeichert)")
+            with open(new_file_name, "rb") as file:
+                st.download_button(label="Download JPG", data=file, file_name=new_file_name, mime="image/jpeg")
 
         except Exception as e:
-            print(f"Fehler beim Verarbeiten des Bildes {file_path}: {e}")
-
+            st.error(f"Error processing the image {uploaded_file.name}: {e}")
 
 if __name__ == "__main__":
-    # Erstelle das Hauptfenster
-    root = tk.Tk()
-    root.withdraw()  # Versteckt das leere Tkinter-Fenster
-
-    # Rufe die Funktion auf, um Dateien auszuwählen und Bilder zu laden und zu drehen
+    st.title("Image Converter")
+    st.write("Upload images, and they will be rotated to landscape (if needed) and converted to JPG format.")
     load_and_convert_images()
